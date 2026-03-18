@@ -1,11 +1,43 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Editor</title>
-</head>
-<body>
-    <h1>Hello</h1>
-</body>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="editor.css" />
+  </head>
+  <body>
+    <head>
+      <div class="company">
+        <img class="logo" src="assets/terminal.png" alt="">
+        <h1>Compiler</h1>
+      </div>
+    </head>
+    <div class="space-head-body"></div>
+    <main>
+      <div class="main-box">
+        <div class="handle-code">
+            <div class="files">
+                <button class="file-btn">index.html</button>
+                <button class="file-btn">style.css</button>
+                <button class="file-btn">script.js</button>
+                <button class="add-btn">+</button>
+            </div>
+            <div class="project-name">
+                <h4>Code Editor</h4>
+            </div>
+            <div class="execute">
+                <button>Run</button>
+            </div>
+        </div>
+        <div class="code-editor-viewer">
+          <div class="code-input"></div>
+          <div class="middle-edit-view"></div>
+          <div class="code-output"></div>
+        </div>
+      </div>
+    </main>
+    <footer></footer>
+  </body>
 </html>
