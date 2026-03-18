@@ -1,64 +1,101 @@
-
-.company{
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 8px;
-    cursor: pointer;
+.company {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  cursor: pointer;
 }
 
-.logo{
-    height: 28px;
+.logo {
+  height: 28px;
 }
 
-.handle-code{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 48px;
+.handle-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
 }
 
-.space-head-body{
-    height: 5px;
-    background-color: rgb(207, 207, 207);
+.space-head-body {
+  height: 5px;
+  background-color: rgb(207, 207, 207);
 }
 
-.code-editor-viewer{
-    display: flex;
-    height: 100vh;
-    width: 100%;
+.code-editor-viewer {
+  display: flex;
+  height: 100vh;
+  width: 100%;
 }
 
-.code-input{
-    background-color: aquamarine;
-    flex: 1;
+.code-input {
+  display: flex;
+  overflow: hidden;
+  /* background-color: aquamarine; */
+  height: 100%;
 }
 
-.middle-edit-view{
-    width: 5px;
-    background-color: rgb(207, 207, 207);
+#code {
+  flex: 1;
+  height: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 3px;
+  font-size: 16px;
+  overflow: auto;
+  line-height: 1.5;
+  width: 100%;
+  font-family: 'Outfit';
+  white-space: pre;
+  tab-size: 2;
+  caret-color: black;
 }
 
-.code-output{
-    background-color: rgb(72, 107, 107);
-    flex: 1;
+.highlight-line {
+  background-color: rgb(48, 148, 255);
 }
 
-.files{
-    display: flex;
-    align-items: center;
+.middle-edit-view {
+  width: 5px;
+  background-color: rgb(207, 207, 207);
 }
 
-.file-btn{
-    background: none;
-    outline: none;
-    border: none;
-    cursor: pointer;
-    position: relative;
-    height: 48px;
-    padding: 0 16px;
+.code-output {
+  background-color: rgb(72, 107, 107);
+  flex: 1;
 }
 
-.file-btn:hover{
-    background-color: rgb(176, 218, 255);
+.files {
+  display: flex;
+  align-items: center;
+}
+
+.file-btn {
+  background: none;
+  outline: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  height: 48px;
+  padding: 0 16px;
+}
+
+.file-btn:hover {
+  background-color: rgb(176, 218, 255);
+}
+
+.add-btn {
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 22px;
+}
+
+.line-num {
+  background-color: grey;
+  overflow: hidden;
+  padding: 3px 6px;
+  font-size: 16px;
+  line-height: 1.5;
 }

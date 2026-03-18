@@ -8,12 +8,12 @@
     <link rel="stylesheet" href="editor.css" />
   </head>
   <body>
-    <head>
+    <div>
       <div class="company">
         <img class="logo" src="assets/terminal.png" alt="">
         <h1>Compiler</h1>
       </div>
-    </head>
+    </div>
     <div class="space-head-body"></div>
     <main>
       <div class="main-box">
@@ -32,12 +32,18 @@
             </div>
         </div>
         <div class="code-editor-viewer">
-          <div class="code-input"></div>
+          <div class="code-input">
+            <div class="line-num" id="lines">
+
+            </div>
+            <textarea name="" id="code"></textarea>
+          </div>
           <div class="middle-edit-view"></div>
           <div class="code-output"></div>
         </div>
       </div>
     </main>
     <footer></footer>
+    <script src="script.js"></script>
   </body>
 </html>
