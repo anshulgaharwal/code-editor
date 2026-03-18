@@ -1,5 +1,9 @@
 const lines = document.getElementById("lines");
 const code = document.getElementById("code");
+const divider = document.querySelector(".middle-edit-view");
+const editorViewer = document.querySelector(".code-editor-viewer");
+const codeInput = document.querySelector(".code-input");
+const codeOutput = document.querySelector(".code-output");
 
 if (lines && code) {
   const updateLines = () => {
@@ -44,4 +48,46 @@ if (lines && code) {
 
   updateLines();
   highlightLine();
+}
+
+if (divider && editorViewer && codeInput && codeOutput) {
+  const minPanelWidth = 180;
+  let isDragging = false;
+
+  const stopDragging = () => {
+    isDragging = false;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  };
+
+  const resizePanels = (clientX) => {
+    const viewerRect = editorViewer.getBoundingClientRect();
+    const dividerWidth = divider.offsetWidth;
+    const maxLeftWidth = viewerRect.width - dividerWidth - minPanelWidth;
+    const leftWidth = Math.min(
+      Math.max(clientX - viewerRect.left, minPanelWidth),
+      maxLeftWidth
+    );
+
+    codeInput.style.flexBasis = `${leftWidth}px`;
+    codeOutput.style.flexBasis = `${viewerRect.width - dividerWidth - leftWidth}px`;
+  };
+
+  divider.addEventListener("pointerdown", (event) => {
+    isDragging = true;
+    divider.setPointerCapture(event.pointerId);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  });
+
+  divider.addEventListener("pointermove", (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    resizePanels(event.clientX);
+  });
+
+  divider.addEventListener("pointerup", stopDragging);
+  divider.addEventListener("pointercancel", stopDragging);
 }

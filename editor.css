@@ -33,6 +33,8 @@
   overflow: hidden;
   /* background-color: aquamarine; */
   height: 100%;
+  flex: 0 0 50%;
+  min-width: 180px;
 }
 
 #code {
@@ -59,11 +61,14 @@
 .middle-edit-view {
   width: 5px;
   background-color: rgb(207, 207, 207);
+  cursor: col-resize;
+  flex: 0 0 5px;
 }
 
 .code-output {
   background-color: rgb(72, 107, 107);
   flex: 1;
+  min-width: 180px;
 }
 
 .files {
