@@ -5,9 +5,8 @@ const editorViewer = document.querySelector(".code-editor-viewer");
 const codeInput = document.querySelector(".code-input");
 const codeOutput = document.querySelector(".code-output");
 const addFileBtn = document.getElementById("addFileBtn");
-const fileDropdown = document.getElementById("fileDropdown")
+const fileDropdown = document.getElementById("fileDropdown");
 const fileContainer = document.querySelector(".files");
-
 
 if (lines && code) {
   const updateLines = () => {
@@ -70,7 +69,7 @@ if (divider && editorViewer && codeInput && codeOutput) {
     const maxLeftWidth = viewerRect.width - dividerWidth - minPanelWidth;
     const leftWidth = Math.min(
       Math.max(clientX - viewerRect.left, minPanelWidth),
-      maxLeftWidth
+      maxLeftWidth,
     );
 
     codeInput.style.flexBasis = `${leftWidth}px`;
@@ -96,8 +95,31 @@ if (divider && editorViewer && codeInput && codeOutput) {
   divider.addEventListener("pointercancel", stopDragging);
 }
 
+if (addFileBtn && fileDropdown && fileContainer) {
+  addFileBtn.addEventListener("click", () => {
+    fileDropdown.classList.toggle("hidden");
+  });
 
-addFileBtn.addEventListener("click", () => {
-  fileDropdown.classList.toggle("hidden");
-});
+  fileDropdown.addEventListener("click", (event) => {
+    const item = event.target.closest(".dropdown-item");
+    if (!item) {
+      return;
+    }
 
+    const extension = item.dataset.extension;
+    const fileName = prompt(`Enter file name (without ${extension})`);
+
+    if (!fileName) {
+      return;
+    }
+
+    const newTab = document.createElement("button");
+    newTab.className = "file-btn";
+    newTab.textContent = `${fileName}${extension}`;
+
+    const addFileMenu = document.querySelector(".add-file-menu");
+    fileContainer.insertBefore(newTab, addFileMenu);
+
+    fileDropdown.classList.add("hidden");
+  });
+}
