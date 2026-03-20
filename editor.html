@@ -10,7 +10,7 @@
   <body>
     <div class="navigation-bar">
       <a class="company" href="index.html">
-        <img class="logo" src="assets/terminal.png" alt="">
+        <img class="logo" src="assets/terminal.png" alt="" />
         <h1>Compiler</h1>
       </a>
     </div>
@@ -18,30 +18,32 @@
     <main>
       <div class="main-box">
         <div class="handle-code">
-            <div class="files">
-                <button class="file-btn">index.html</button>
-                <button class="file-btn">style.css</button>
-                <button class="file-btn">script.js</button>
-                <button class="add-btn">+</button>
+          <div class="files">
+            <button class="file-btn">note.txt</button>
+            <div class="add-file-menu">
+              <button class="add-btn" id="addFileBtn">+</button>
+
+              <div class="dropdown hidden" id="fileDropdown">
+                <button class="dropdown-item" data-extension=".cpp">
+                  C++
+                </button>
+              </div>
             </div>
-            <div class="project-name">
-                <h4>Code Editor</h4>
-            </div>
-            <div class="execute">
-                <button>Run</button>
-            </div>
+          </div>
+          <div class="project-name">
+            <h4>Code Editor</h4>
+          </div>
+          <div class="execute">
+            <button>Run</button>
+          </div>
         </div>
         <div class="code-editor-viewer">
           <div class="code-input">
-            <div class="line-num" id="lines">
-
-            </div>
+            <div class="line-num" id="lines"></div>
             <textarea name="" id="code"></textarea>
           </div>
           <div class="middle-edit-view"></div>
-          <div class="code-output">
-            Output
-          </div>
+          <div class="code-output">Output</div>
         </div>
       </div>
     </main>

@@ -4,6 +4,10 @@ const divider = document.querySelector(".middle-edit-view");
 const editorViewer = document.querySelector(".code-editor-viewer");
 const codeInput = document.querySelector(".code-input");
 const codeOutput = document.querySelector(".code-output");
+const addFileBtn = document.getElementById("addFileBtn");
+const fileDropdown = document.getElementById("fileDropdown")
+const fileContainer = document.querySelector(".files");
+
 
 if (lines && code) {
   const updateLines = () => {
@@ -91,3 +95,9 @@ if (divider && editorViewer && codeInput && codeOutput) {
   divider.addEventListener("pointerup", stopDragging);
   divider.addEventListener("pointercancel", stopDragging);
 }
+
+
+addFileBtn.addEventListener("click", () => {
+  fileDropdown.classList.toggle("hidden");
+});
+
