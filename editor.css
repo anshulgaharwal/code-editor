@@ -95,6 +95,11 @@
   font-weight: 600;
 }
 
+.file-btn.active {
+  font-weight: 700;
+  border-bottom: 2px solid black;
+}
+
 .add-btn {
   background: none;
   border: none;
