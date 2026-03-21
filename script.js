@@ -9,6 +9,7 @@ const fileDropdown = document.getElementById("fileDropdown");
 const fileContainer = document.querySelector(".files");
 const addFileMenu = document.querySelector(".add-file-menu");
 const autocomplete = document.getElementById("autocomplete");
+const highlighting = document.getElementById("highlighting");
 
 const storageKey = "code-editor-files";
 const cppAutocompleteTrie =
@@ -55,9 +56,28 @@ const highlightLine = () => {
   )`;
 };
 
+const renderCodeView = (fileName = "") => {
+  if (!highlighting || !code) {
+    return;
+  }
+
+  if (fileName.endsWith(".cpp") && typeof highlightCppCode === "function") {
+    highlighting.innerHTML = highlightCppCode(code.value);
+  } else if (typeof escapeHtml === "function") {
+    highlighting.innerHTML = escapeHtml(code.value) || " ";
+  } else {
+    highlighting.textContent = code.value || " ";
+  }
+};
+
 if (lines && code) {
   code.addEventListener("scroll", () => {
     lines.scrollTop = code.scrollTop;
+
+    if (highlighting) {
+      highlighting.scrollTop = code.scrollTop;
+      highlighting.scrollLeft = code.scrollLeft;
+    }
   });
 
   code.addEventListener("click", highlightLine);
@@ -306,6 +326,9 @@ if (fileContainer && addFileMenu && code) {
     if (activeFile) {
       activeFile.content = code.value;
       saveFiles();
+      renderCodeView(activeFile.name);
+    } else {
+      renderCodeView();
     }
 
     updateLines();
@@ -331,6 +354,13 @@ if (fileContainer && addFileMenu && code) {
     code.value = activeFile.content;
     code.scrollTop = 0;
     lines.scrollTop = 0;
+    renderCodeView(activeFile.name);
+
+    if (highlighting) {
+      highlighting.scrollTop = 0;
+      highlighting.scrollLeft = 0;
+    }
+
     updateLines();
     highlightLine();
     updateAutocomplete();
@@ -412,6 +442,9 @@ if (fileContainer && addFileMenu && code) {
     if (activeFile) {
       activeFile.content = code.value;
       saveFiles();
+      renderCodeView(activeFile.name);
+    } else {
+      renderCodeView();
     }
 
     updateLines();

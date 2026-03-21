@@ -40,7 +40,10 @@
         <div class="code-editor-viewer">
           <div class="code-input">
             <div class="line-num" id="lines"></div>
-            <textarea name="" id="code"></textarea>
+            <div class="editor-stack">
+              <pre class="highlighting" id="highlighting" aria-hidden="true"></pre>
+              <textarea name="" id="code" spellcheck="false"></textarea>
+            </div>
             <div class="autocomplete hidden" id="autocomplete"></div>
           </div>
           <div class="middle-edit-view"></div>

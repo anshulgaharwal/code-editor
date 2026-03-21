@@ -124,6 +124,37 @@ const cppPrimitiveTypes = [
   "wchar_t",
 ];
 
+const cppTypeWords = [
+  ...cppPrimitiveTypes,
+  "size_t",
+  "string",
+  "vector",
+  "queue",
+  "stack",
+  "deque",
+  "map",
+  "unordered_map",
+  "set",
+  "unordered_set",
+  "multiset",
+  "pair",
+];
+
+const cppKeywordWords = cppWords.filter(
+  (word) =>
+    !cppTypeWords.includes(word) &&
+    !["std", "include", "iostream"].includes(word),
+);
+
+const escapeHtml = (value) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
+const escapeRegex = (value) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const createTrieNode = () => ({
   children: {},
   isWord: false,
@@ -194,3 +225,70 @@ const getTrieSuggestions = (root, prefix, limit = 8) => {
 };
 
 const cppKeywordTrie = buildTrie(cppWords);
+const cppKeywordPattern = cppKeywordWords
+  .slice()
+  .sort((left, right) => right.length - left.length)
+  .map(escapeRegex)
+  .join("|");
+const cppTypePattern = cppTypeWords
+  .slice()
+  .sort((left, right) => right.length - left.length)
+  .map(escapeRegex)
+  .join("|");
+
+const cppHighlightRegex = new RegExp(
+  [
+    "(?<comment>\\/\\/.*$|\\/\\*[\\s\\S]*?\\*\\/)",
+    '(?<string>"(?:\\\\.|[^"\\\\])*")',
+    "(?<char>'(?:\\\\.|[^'\\\\])*')",
+    "(?<directive>#\\s*[A-Za-z_]\\w*)",
+    "(?<header><[A-Za-z0-9_./+-]+>)",
+    `(?<keyword>\\b(?:${cppKeywordPattern})\\b)`,
+    `(?<type>\\b(?:${cppTypePattern})\\b)`,
+    "(?<number>\\b\\d+(?:\\.\\d+)?\\b)",
+    "(?<namespace>\\bstd\\b|::)",
+    "(?<function>\\b[A-Za-z_]\\w*(?=\\s*\\())",
+  ].join("|"),
+  "gm",
+);
+
+const highlightCppCode = (source) => {
+  let html = "";
+  let lastIndex = 0;
+
+  source.replace(cppHighlightRegex, (match, ...args) => {
+    const groups = args.at(-1);
+    const matchIndex = args.at(-3);
+
+    html += escapeHtml(source.slice(lastIndex, matchIndex));
+
+    if (groups.comment) {
+      html += `<span class="token-comment">${escapeHtml(match)}</span>`;
+    } else if (groups.string || groups.char) {
+      html += `<span class="token-string">${escapeHtml(match)}</span>`;
+    } else if (groups.directive) {
+      html += `<span class="token-directive">${escapeHtml(match)}</span>`;
+    } else if (groups.header) {
+      html += `<span class="token-header">${escapeHtml(match)}</span>`;
+    } else if (groups.keyword) {
+      html += `<span class="token-keyword">${escapeHtml(match)}</span>`;
+    } else if (groups.type) {
+      html += `<span class="token-type">${escapeHtml(match)}</span>`;
+    } else if (groups.number) {
+      html += `<span class="token-number">${escapeHtml(match)}</span>`;
+    } else if (groups.namespace) {
+      html += `<span class="token-namespace">${escapeHtml(match)}</span>`;
+    } else if (groups.function) {
+      html += `<span class="token-function">${escapeHtml(match)}</span>`;
+    } else {
+      html += escapeHtml(match);
+    }
+
+    lastIndex = matchIndex + match.length;
+    return match;
+  });
+
+  html += escapeHtml(source.slice(lastIndex));
+
+  return html || " ";
+};

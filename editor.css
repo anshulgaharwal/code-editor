@@ -43,20 +43,41 @@
   min-width: 180px;
 }
 
-#code {
+.editor-stack {
+  position: relative;
   flex: 1;
   height: 100%;
+  overflow: hidden;
+}
+
+.highlighting,
+#code {
+  position: absolute;
+  inset: 0;
+  margin: 0;
   border: none;
   outline: none;
-  resize: none;
   padding: 3px;
   font-size: 16px;
-  overflow: auto;
   line-height: 1.5;
   width: 100%;
   font-family: 'Outfit';
   white-space: pre;
   tab-size: 2;
+  overflow: auto;
+}
+
+.highlighting {
+  background: #ffffff;
+  color: #1f1f1f;
+  pointer-events: none;
+}
+
+#code {
+  resize: none;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
   caret-color: black;
 }
 
@@ -185,4 +206,44 @@
   color: #666;
   font-size: 12px;
   text-transform: capitalize;
+}
+
+.token-comment {
+  color: #5f7f94;
+  font-style: italic;
+}
+
+.token-string {
+  color: #2f6fdd;
+}
+
+.token-keyword {
+  color: #004fc4;
+  font-weight: 600;
+}
+
+.token-number {
+  color: #0b7fc7;
+}
+
+.token-directive {
+  color: #356dce;
+  font-weight: 600;
+}
+
+.token-namespace {
+  color: #0e7490;
+}
+
+.token-type {
+  color: #0078a8;
+}
+
+.token-function {
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.token-header {
+  color: #5b8def;
 }
