@@ -1,84 +1,91 @@
-# Code Editor Project
+# Code Editor
+
+A lightweight browser-based code editor prototype built with plain HTML, CSS, and JavaScript.
 
 ## Overview
 
-This is a small front-end project with two pages:
+This project includes:
 
-- `index.html`: a simple landing page with a button that opens the editor.
-- `editor.html`: the main editor UI with a file tab bar, code input area, line numbers, a draggable divider, and an output panel placeholder.
+- a simple landing page in `index.html`
+- an editor screen in `editor.html`
+- custom styling split across `style.css` and `editor.css`
+- client-side editor interactions in `script.js`
 
-The project is currently built with plain HTML, CSS, and JavaScript only. There is no build step, package manager, or framework.
+The project does not use a framework, package manager, or build step. You can run it directly in the browser.
 
-## Current File Structure
+## Features
 
-- `index.html`: homepage / entry page
-- `editor.html`: editor page
-- `style.css`: shared styles used by the homepage and loaded by the editor page
-- `editor.css`: editor-page-specific styles
-- `script.js`: editor interactions
-- `assets/terminal.png`: logo image
+- Landing page with a button that opens the editor
+- Editor header with branding and project title
+- File tab area with a default `note.txt` tab
+- Add-file dropdown that currently supports creating `.cpp` tabs
+- Line number generation that updates as you type
+- Current-line highlight inside the editor textarea
+- Scroll syncing between the editor and line number column
+- Draggable divider for resizing the editor and output panels
+- Output panel placeholder for future execution support
+
+## Project Structure
+
+- `index.html` - entry page
+- `editor.html` - main editor interface
+- `style.css` - global styles and font import
+- `editor.css` - editor layout and component styling
+- `script.js` - line numbers, highlighting, resizing, and tab creation logic
+- `assets/terminal.png` - logo used in the editor header
 
 ## Current Behavior
 
-### `index.html`
+### Landing page
 
-- Shows a basic heading and a `CODE` button.
-- The button links to `editor.html`.
+`index.html` shows a minimal "Code online" screen with a `CODE` button that links to `editor.html`.
 
-### `editor.html`
+### Editor page
 
-- Navigation bar with a clickable `.company` link that returns to `index.html`.
-- File buttons for `index.html`, `style.css`, and `script.js`.
-- `Run` button is present in the UI, but it does not yet execute code.
-- Editor layout is split into:
-  - left panel: line numbers + textarea
-  - middle divider: draggable resize handle
-  - right panel: output placeholder
+`editor.html` includes:
 
-### `script.js`
+- a top navigation area with the logo and "Compiler" heading
+- a file tab section with an add button
+- a centered project label showing "Code Editor"
+- a `Run` button
+- a split main area with code input on the left and output on the right
 
-Implements:
+### JavaScript interactions
 
-- line number generation based on textarea content
-- current-line highlight using a background gradient on the textarea
-- line-number scroll syncing with the textarea
-- draggable resize for the editor/input and output panels
+`script.js` currently handles:
 
-## Important Notes For Future AI Assistance
+- generating line numbers from textarea content
+- highlighting the active line based on cursor position
+- syncing line-number scroll with the textarea
+- resizing the editor/output panels with pointer events
+- toggling the add-file dropdown
+- creating new file tabs from a prompted filename and selected extension
 
-- This project is in an early UI/prototype stage.
-- Keep the stack simple unless the user explicitly asks for a framework or tooling upgrade.
-- Prefer small, understandable changes over large rewrites.
-- Preserve the current plain HTML/CSS/JS approach unless asked otherwise.
-- Do not assume the `Run` button already has execution logic; it is only visual right now.
-- Be careful when changing layout heights because the editor currently uses `100vh` and also has top navigation above it.
-- If improving accessibility, prioritize:
-  - adding better button/textarea labels
-  - improving image `alt` text
-  - keeping keyboard navigation intact
+## Limitations
 
-## Known Gaps / Limitations
+- The `Run` button is present but has no execution logic yet
+- New tabs are visual only and do not switch file content
+- File content is not saved
+- The output panel is a placeholder
+- The add-file menu currently offers only one extension option: `.cpp`
+- There are no tests yet
 
-- No real code execution yet
-- No file switching logic yet
-- No saved editor content
-- No tests
-- No modular JavaScript structure yet
-- Line numbers are rebuilt on every input event
-- Resize behavior is functional but still basic
+## How to Run
 
-## Suggested Direction
+Open `index.html` in a browser.
 
-If this project continues growing, a good next step is:
+You can also open `editor.html` directly if you want to skip the landing page.
 
-1. Clean up structure and semantics in HTML.
-2. Separate editor behaviors into small JS functions or modules.
-3. Make the editor layout more robust for different screen sizes.
-4. Add real output execution logic in a safe way.
-5. Add basic testing for editor interactions.
+## Tech Stack
 
-## How To Run
+- HTML5
+- CSS3
+- Vanilla JavaScript
 
-Open `index.html` or `editor.html` directly in a browser.
+## Next Improvements
 
-Because this is a static front-end project, no installation is currently required.
+- connect the `Run` button to safe code execution or preview behavior
+- add real file switching between tabs
+- improve accessibility labels for the editor controls
+- make the layout more robust on smaller screens
+- replace `prompt()`-based file creation with an in-page form or modal
