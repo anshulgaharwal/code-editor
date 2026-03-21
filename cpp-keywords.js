@@ -1,4 +1,4 @@
-const cppKeywords = [
+const cppWords = [
   "alignas",
   "alignof",
   "and",
@@ -42,17 +42,20 @@ const cppKeywords = [
   "export",
   "extern",
   "false",
+  "final",
   "float",
   "for",
   "friend",
   "goto",
   "if",
+  "import",
   "include",
   "inline",
   "int",
   "iostream",
   "long",
   "main",
+  "module",
   "mutable",
   "namespace",
   "new",
@@ -63,6 +66,7 @@ const cppKeywords = [
   "operator",
   "or",
   "or_eq",
+  "override",
   "private",
   "protected",
   "public",
@@ -100,9 +104,73 @@ const cppKeywords = [
   "xor_eq",
 ];
 
-const cppSpecialIdentifiers = [
-  "final",
-  "import",
-  "module",
-  "override",
-];
+const createTrieNode = () => ({
+  children: {},
+  isWord: false,
+  word: "",
+});
+
+const insertWordIntoTrie = (root, word) => {
+  let node = root;
+
+  for (const character of word.toLowerCase()) {
+    if (!node.children[character]) {
+      node.children[character] = createTrieNode();
+    }
+
+    node = node.children[character];
+  }
+
+  node.isWord = true;
+  node.word = word;
+};
+
+const buildTrie = (words) => {
+  const root = createTrieNode();
+
+  words.forEach((word) => {
+    insertWordIntoTrie(root, word);
+  });
+
+  return root;
+};
+
+const collectTrieWords = (node, suggestions, limit) => {
+  if (suggestions.length >= limit) {
+    return;
+  }
+
+  if (node.isWord) {
+    suggestions.push(node.word);
+  }
+
+  const keys = Object.keys(node.children).sort();
+
+  for (const key of keys) {
+    collectTrieWords(node.children[key], suggestions, limit);
+
+    if (suggestions.length >= limit) {
+      return;
+    }
+  }
+};
+
+const getTrieSuggestions = (root, prefix, limit = 8) => {
+  const normalizedPrefix = prefix.toLowerCase();
+  let node = root;
+
+  for (const character of normalizedPrefix) {
+    if (!node.children[character]) {
+      return [];
+    }
+
+    node = node.children[character];
+  }
+
+  const suggestions = [];
+  collectTrieWords(node, suggestions, limit + 1);
+
+  return suggestions.filter((word) => word.toLowerCase() !== normalizedPrefix).slice(0, limit);
+};
+
+const cppKeywordTrie = buildTrie(cppWords);

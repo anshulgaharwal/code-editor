@@ -11,12 +11,8 @@ const addFileMenu = document.querySelector(".add-file-menu");
 const autocomplete = document.getElementById("autocomplete");
 
 const storageKey = "code-editor-files";
-const cppAutocompleteWords = [
-  ...(typeof cppKeywords !== "undefined" ? cppKeywords : []),
-  ...(typeof cppSpecialIdentifiers !== "undefined"
-    ? cppSpecialIdentifiers
-    : []),
-];
+const cppAutocompleteTrie =
+  typeof cppKeywordTrie !== "undefined" ? cppKeywordTrie : null;
 
 const updateLines = () => {
   if (!lines || !code) {
@@ -161,10 +157,12 @@ if (fileContainer && addFileMenu && code) {
       return;
     }
 
-    activeSuggestions = cppAutocompleteWords
-      .filter((word) => word.toLowerCase().startsWith(currentWord))
-      .filter((word) => word.toLowerCase() !== currentWord)
-      .slice(0, 8);
+    if (!cppAutocompleteTrie || typeof getTrieSuggestions !== "function") {
+      hideAutocomplete();
+      return;
+    }
+
+    activeSuggestions = getTrieSuggestions(cppAutocompleteTrie, currentWord, 8);
 
     selectedSuggestionIndex = 0;
     renderAutocomplete();
