@@ -164,6 +164,10 @@
 }
 
 .autocomplete-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 8px 12px;
   cursor: pointer;
 }
@@ -171,4 +175,14 @@
 .autocomplete-item:hover,
 .autocomplete-item.active {
   background: #f0f0f0;
+}
+
+.autocomplete-word {
+  font-weight: 500;
+}
+
+.autocomplete-kind {
+  color: #666;
+  font-size: 12px;
+  text-transform: capitalize;
 }

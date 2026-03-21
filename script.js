@@ -13,6 +13,9 @@ const autocomplete = document.getElementById("autocomplete");
 const storageKey = "code-editor-files";
 const cppAutocompleteTrie =
   typeof cppKeywordTrie !== "undefined" ? cppKeywordTrie : null;
+const cppPrimitiveTypeSet = new Set(
+  typeof cppPrimitiveTypes !== "undefined" ? cppPrimitiveTypes : [],
+);
 
 const updateLines = () => {
   if (!lines || !code) {
@@ -66,6 +69,8 @@ if (fileContainer && addFileMenu && code) {
   let activeFileId = null;
   let activeSuggestions = [];
   let selectedSuggestionIndex = 0;
+  let currentSymbolTrie = null;
+  let currentSymbols = new Map();
 
   const createFileId = () =>
     `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -106,10 +111,94 @@ if (fileContainer && addFileMenu && code) {
 
   const isCppFileActive = () => getActiveFile()?.name.endsWith(".cpp");
 
+  const escapeHtml = (value) =>
+    value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+
   const getCurrentWord = () => {
     const beforeCursor = code.value.slice(0, code.selectionStart);
     const match = beforeCursor.match(/[A-Za-z_][A-Za-z0-9_]*$/);
     return match ? match[0] : "";
+  };
+
+  const addSymbol = (symbols, name, kind) => {
+    if (!name || cppWords.includes(name)) {
+      return;
+    }
+
+    if (!symbols.has(name)) {
+      symbols.set(name, kind);
+    }
+  };
+
+  const extractCppSymbols = (source) => {
+    const symbols = new Map();
+    const cleanedSource = source
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/\/\/.*$/gm, " ")
+      .replace(/"(?:\\.|[^"\\])*"/g, " ")
+      .replace(/'(?:\\.|[^'\\])*'/g, " ");
+
+    const classRegex = /\b(class|struct|enum|namespace)\s+([A-Za-z_]\w*)/g;
+    const functionRegex =
+      /\b(?:[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*[\s*&]+)+([A-Za-z_]\w*)\s*\([^;{}]*\)\s*(?:const)?\s*(?:\{|$)/gm;
+    const declarationRegex =
+      /\b(?:const\s+|constexpr\s+|static\s+|mutable\s+|unsigned\s+|signed\s+|long\s+|short\s+)*([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)\s+([^;{}()]+);/gm;
+
+    for (const match of cleanedSource.matchAll(classRegex)) {
+      addSymbol(symbols, match[2], match[1]);
+    }
+
+    for (const match of cleanedSource.matchAll(functionRegex)) {
+      addSymbol(symbols, match[1], "function");
+    }
+
+    for (const match of cleanedSource.matchAll(declarationRegex)) {
+      const declaredType = match[1].split("::").pop();
+      const declarators = match[2].split(",");
+
+      declarators.forEach((declarator) => {
+        const variableMatch = declarator.match(/([A-Za-z_]\w*)\s*(?:=|\[|$)/);
+
+        if (!variableMatch) {
+          return;
+        }
+
+        const variableName = variableMatch[1];
+
+        if (
+          variableName === declaredType ||
+          cppPrimitiveTypeSet.has(variableName)
+        ) {
+          return;
+        }
+
+        addSymbol(symbols, variableName, "variable");
+      });
+    }
+
+    const stdItemRegex = /\bstd::([A-Za-z_]\w*)/g;
+
+    for (const match of cleanedSource.matchAll(stdItemRegex)) {
+      addSymbol(symbols, match[1], "std");
+    }
+
+    return symbols;
+  };
+
+  const refreshSymbolIndex = () => {
+    const activeFile = getActiveFile();
+
+    if (!activeFile || !isCppFileActive()) {
+      currentSymbols = new Map();
+      currentSymbolTrie = null;
+      return;
+    }
+
+    currentSymbols = extractCppSymbols(activeFile.content);
+    currentSymbolTrie = buildTrie(Array.from(currentSymbols.keys()));
   };
 
   const hideAutocomplete = () => {
@@ -135,7 +224,8 @@ if (fileContainer && addFileMenu && code) {
             class="autocomplete-item${index === selectedSuggestionIndex ? " active" : ""}"
             data-index="${index}"
           >
-            ${suggestion}
+            <span class="autocomplete-word">${escapeHtml(suggestion.label)}</span>
+            <span class="autocomplete-kind">${escapeHtml(suggestion.kind)}</span>
           </div>
         `,
       )
@@ -162,7 +252,37 @@ if (fileContainer && addFileMenu && code) {
       return;
     }
 
-    activeSuggestions = getTrieSuggestions(cppAutocompleteTrie, currentWord, 8);
+    refreshSymbolIndex();
+
+    const symbolSuggestions = currentSymbolTrie
+      ? getTrieSuggestions(currentSymbolTrie, currentWord, 8).map((label) => ({
+          label,
+          kind: currentSymbols.get(label) || "symbol",
+          source: "symbol",
+        }))
+      : [];
+
+    const keywordSuggestions = getTrieSuggestions(cppAutocompleteTrie, currentWord, 8).map(
+      (label) => ({
+        label,
+        kind: "keyword",
+        source: "keyword",
+      }),
+    );
+
+    const mergedSuggestions = [];
+    const seenLabels = new Set();
+
+    [...symbolSuggestions, ...keywordSuggestions].forEach((suggestion) => {
+      if (seenLabels.has(suggestion.label)) {
+        return;
+      }
+
+      seenLabels.add(suggestion.label);
+      mergedSuggestions.push(suggestion);
+    });
+
+    activeSuggestions = mergedSuggestions.slice(0, 8);
 
     selectedSuggestionIndex = 0;
     renderAutocomplete();
@@ -178,7 +298,7 @@ if (fileContainer && addFileMenu && code) {
     const start = code.selectionStart - currentWord.length;
     const end = code.selectionStart;
 
-    code.setRangeText(suggestion, start, end, "end");
+    code.setRangeText(suggestion.label, start, end, "end");
     code.focus();
 
     const activeFile = getActiveFile();

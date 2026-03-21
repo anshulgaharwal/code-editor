@@ -43,6 +43,7 @@ const cppWords = [
   "extern",
   "false",
   "final",
+  "first",
   "float",
   "for",
   "friend",
@@ -74,6 +75,7 @@ const cppWords = [
   "reinterpret_cast",
   "requires",
   "return",
+  "second",
   "short",
   "signed",
   "sizeof",
@@ -102,6 +104,24 @@ const cppWords = [
   "while",
   "xor",
   "xor_eq",
+];
+
+const cppPrimitiveTypes = [
+  "bool",
+  "char",
+  "char8_t",
+  "char16_t",
+  "char32_t",
+  "double",
+  "float",
+  "int",
+  "long",
+  "short",
+  "signed",
+  "string",
+  "unsigned",
+  "void",
+  "wchar_t",
 ];
 
 const createTrieNode = () => ({
