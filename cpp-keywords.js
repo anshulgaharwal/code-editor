@@ -252,43 +252,76 @@ const cppHighlightRegex = new RegExp(
   "gm",
 );
 
-const highlightCppCode = (source) => {
+const renderHighlightedSegment = (segment, markedIndexSet, baseIndex, tokenClass = "") => {
+  let html = "";
+
+  for (let offset = 0; offset < segment.length; offset += 1) {
+    const character = segment[offset];
+    const characterIndex = baseIndex + offset;
+    const classNames = [];
+
+    if (tokenClass) {
+      classNames.push(tokenClass);
+    }
+
+    if (markedIndexSet.has(characterIndex)) {
+      classNames.push("bracket-match");
+    }
+
+    const escapedCharacter = escapeHtml(character);
+
+    if (classNames.length) {
+      html += `<span class="${classNames.join(" ")}">${escapedCharacter}</span>`;
+    } else {
+      html += escapedCharacter;
+    }
+  }
+
+  return html;
+};
+
+const highlightCppCode = (source, markedIndices = []) => {
   let html = "";
   let lastIndex = 0;
+  const markedIndexSet = new Set(markedIndices);
 
   source.replace(cppHighlightRegex, (match, ...args) => {
     const groups = args.at(-1);
     const matchIndex = args.at(-3);
 
-    html += escapeHtml(source.slice(lastIndex, matchIndex));
+    html += renderHighlightedSegment(
+      source.slice(lastIndex, matchIndex),
+      markedIndexSet,
+      lastIndex,
+    );
 
     if (groups.comment) {
-      html += `<span class="token-comment">${escapeHtml(match)}</span>`;
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex, "token-comment");
     } else if (groups.string || groups.char) {
-      html += `<span class="token-string">${escapeHtml(match)}</span>`;
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex, "token-string");
     } else if (groups.directive) {
-      html += `<span class="token-directive">${escapeHtml(match)}</span>`;
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex, "token-directive");
     } else if (groups.header) {
-      html += `<span class="token-header">${escapeHtml(match)}</span>`;
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex, "token-header");
     } else if (groups.keyword) {
-      html += `<span class="token-keyword">${escapeHtml(match)}</span>`;
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex, "token-keyword");
     } else if (groups.type) {
-      html += `<span class="token-type">${escapeHtml(match)}</span>`;
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex, "token-type");
     } else if (groups.number) {
-      html += `<span class="token-number">${escapeHtml(match)}</span>`;
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex, "token-number");
     } else if (groups.namespace) {
-      html += `<span class="token-namespace">${escapeHtml(match)}</span>`;
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex, "token-namespace");
     } else if (groups.function) {
-      html += `<span class="token-function">${escapeHtml(match)}</span>`;
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex, "token-function");
     } else {
-      html += escapeHtml(match);
+      html += renderHighlightedSegment(match, markedIndexSet, matchIndex);
     }
 
     lastIndex = matchIndex + match.length;
     return match;
   });
 
-  html += escapeHtml(source.slice(lastIndex));
+  html += renderHighlightedSegment(source.slice(lastIndex), markedIndexSet, lastIndex);
 
   return html || " ";
 };

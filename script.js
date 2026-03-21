@@ -17,6 +17,21 @@ const cppAutocompleteTrie =
 const cppPrimitiveTypeSet = new Set(
   typeof cppPrimitiveTypes !== "undefined" ? cppPrimitiveTypes : [],
 );
+const autoClosePairs = {
+  "(": ")",
+  "[": "]",
+  "{": "}",
+  '"': '"',
+  "'": "'",
+};
+const bracketPairs = {
+  "(": ")",
+  "[": "]",
+  "{": "}",
+};
+const closingBracketToOpening = Object.fromEntries(
+  Object.entries(bracketPairs).map(([opening, closing]) => [closing, opening]),
+);
 
 const updateLines = () => {
   if (!lines || !code) {
@@ -61,13 +76,103 @@ const renderCodeView = (fileName = "") => {
     return;
   }
 
+  const bracketMatch = getBracketMatch(code.value, code.selectionStart, code.selectionEnd);
+
   if (fileName.endsWith(".cpp") && typeof highlightCppCode === "function") {
-    highlighting.innerHTML = highlightCppCode(code.value);
+    highlighting.innerHTML = highlightCppCode(code.value, bracketMatch?.indices || []);
   } else if (typeof escapeHtml === "function") {
-    highlighting.innerHTML = escapeHtml(code.value) || " ";
+    highlighting.innerHTML = renderPlainCode(code.value, bracketMatch?.indices || []);
   } else {
     highlighting.textContent = code.value || " ";
   }
+};
+
+const renderPlainCode = (source, markedIndices = []) => {
+  if (typeof escapeHtml !== "function") {
+    return source || " ";
+  }
+
+  if (!markedIndices.length) {
+    return escapeHtml(source) || " ";
+  }
+
+  const markedIndexSet = new Set(markedIndices);
+  let html = "";
+
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const escapedCharacter = escapeHtml(character);
+
+    if (markedIndexSet.has(index)) {
+      html += `<span class="bracket-match">${escapedCharacter}</span>`;
+    } else {
+      html += escapedCharacter;
+    }
+  }
+
+  return html || " ";
+};
+
+const getBracketMatch = (source, selectionStart, selectionEnd = selectionStart) => {
+  if (selectionStart !== selectionEnd) {
+    return null;
+  }
+
+  const candidateIndices = [selectionStart - 1, selectionStart].filter(
+    (index) => index >= 0 && index < source.length,
+  );
+
+  for (const index of candidateIndices) {
+    const character = source[index];
+
+    if (bracketPairs[character]) {
+      const matchIndex = findMatchingBracket(source, index, character, bracketPairs[character], 1);
+
+      if (matchIndex !== -1) {
+        return { indices: [index, matchIndex] };
+      }
+    }
+
+    if (closingBracketToOpening[character]) {
+      const matchIndex = findMatchingBracket(
+        source,
+        index,
+        character,
+        closingBracketToOpening[character],
+        -1,
+      );
+
+      if (matchIndex !== -1) {
+        return { indices: [matchIndex, index] };
+      }
+    }
+  }
+
+  return null;
+};
+
+const findMatchingBracket = (source, startIndex, currentBracket, targetBracket, direction) => {
+  let depth = 0;
+
+  for (
+    let index = startIndex;
+    index >= 0 && index < source.length;
+    index += direction
+  ) {
+    const character = source[index];
+
+    if (character === currentBracket) {
+      depth += 1;
+    } else if (character === targetBracket) {
+      depth -= 1;
+
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
 };
 
 if (lines && code) {
@@ -367,6 +472,60 @@ if (fileContainer && addFileMenu && code) {
     setActiveButton();
   };
 
+  const syncEditorState = () => {
+    const activeFile = getActiveFile();
+
+    if (activeFile) {
+      activeFile.content = code.value;
+      saveFiles();
+      renderCodeView(activeFile.name);
+    } else {
+      renderCodeView();
+    }
+
+    updateLines();
+    highlightLine();
+    updateAutocomplete();
+  };
+
+  const setSelectionRange = (start, end = start) => {
+    code.focus();
+    code.setSelectionRange(start, end);
+    highlightLine();
+    renderCodeView(getActiveFile()?.name || "");
+  };
+
+  const applyEdit = (replacement, start, end, selectionMode = "end") => {
+    code.setRangeText(replacement, start, end, selectionMode);
+    syncEditorState();
+  };
+
+  const wrapSelectionWithPair = (opening, closing) => {
+    const selectionStart = code.selectionStart;
+    const selectionEnd = code.selectionEnd;
+    const selectedText = code.value.slice(selectionStart, selectionEnd);
+
+    applyEdit(`${opening}${selectedText}${closing}`, selectionStart, selectionEnd, "end");
+    setSelectionRange(selectionStart + 1, selectionEnd + 1);
+  };
+
+  const insertPair = (opening, closing) => {
+    const selectionStart = code.selectionStart;
+
+    applyEdit(`${opening}${closing}`, selectionStart, selectionStart, "end");
+    setSelectionRange(selectionStart + 1);
+  };
+
+  const shouldAutoCloseQuote = (quote) => {
+    const selectionStart = code.selectionStart;
+    const previousCharacter = code.value[selectionStart - 1] || "";
+    const nextCharacter = code.value[selectionStart] || "";
+    const isEscaped = previousCharacter === "\\";
+    const touchesWord = /\w/.test(previousCharacter) || /\w/.test(nextCharacter);
+
+    return !isEscaped && !touchesWord;
+  };
+
   const renderTabs = () => {
     fileContainer.querySelectorAll(".file-btn").forEach((button) => {
       button.remove();
@@ -436,28 +595,10 @@ if (fileContainer && addFileMenu && code) {
     saveFiles();
   }
 
-  code.addEventListener("input", () => {
-    const activeFile = getActiveFile();
-
-    if (activeFile) {
-      activeFile.content = code.value;
-      saveFiles();
-      renderCodeView(activeFile.name);
-    } else {
-      renderCodeView();
-    }
-
-    updateLines();
-    highlightLine();
-    updateAutocomplete();
-  });
+  code.addEventListener("input", syncEditorState);
 
   code.addEventListener("keydown", (event) => {
-    if (!activeSuggestions.length) {
-      return;
-    }
-
-    if (event.key === "ArrowDown") {
+    if (event.key === "ArrowDown" && activeSuggestions.length) {
       event.preventDefault();
       selectedSuggestionIndex =
         (selectedSuggestionIndex + 1) % activeSuggestions.length;
@@ -465,7 +606,7 @@ if (fileContainer && addFileMenu && code) {
       return;
     }
 
-    if (event.key === "ArrowUp") {
+    if (event.key === "ArrowUp" && activeSuggestions.length) {
       event.preventDefault();
       selectedSuggestionIndex =
         (selectedSuggestionIndex - 1 + activeSuggestions.length) %
@@ -474,7 +615,7 @@ if (fileContainer && addFileMenu && code) {
       return;
     }
 
-    if (event.key === "Enter") {
+    if (event.key === "Enter" && activeSuggestions.length) {
       event.preventDefault();
       insertSuggestion(activeSuggestions[selectedSuggestionIndex]);
       hideAutocomplete();
@@ -483,10 +624,79 @@ if (fileContainer && addFileMenu && code) {
 
     if (event.key === "Escape") {
       hideAutocomplete();
+      return;
+    }
+
+    const selectionStart = code.selectionStart;
+    const selectionEnd = code.selectionEnd;
+    const hasSelection = selectionStart !== selectionEnd;
+    const typedCharacter = event.key;
+
+    if (typedCharacter === "Backspace" && selectionStart > 0 && !hasSelection) {
+      const previousCharacter = code.value[selectionStart - 1];
+      const nextCharacter = code.value[selectionStart];
+
+      if (autoClosePairs[previousCharacter] === nextCharacter) {
+        event.preventDefault();
+        applyEdit("", selectionStart - 1, selectionStart + 1, "start");
+        setSelectionRange(selectionStart - 1);
+      }
+
+      return;
+    }
+
+    if (Object.values(bracketPairs).includes(typedCharacter) && !hasSelection) {
+      const nextCharacter = code.value[selectionStart];
+
+      if (nextCharacter === typedCharacter) {
+        event.preventDefault();
+        setSelectionRange(selectionStart + 1);
+      }
+
+      return;
+    }
+
+    if ((typedCharacter === '"' || typedCharacter === "'") && !hasSelection) {
+      const nextCharacter = code.value[selectionStart];
+
+      if (nextCharacter === typedCharacter) {
+        event.preventDefault();
+        setSelectionRange(selectionStart + 1);
+        return;
+      }
+    }
+
+    if (typedCharacter in autoClosePairs) {
+      const closingCharacter = autoClosePairs[typedCharacter];
+
+      if (
+        (typedCharacter === '"' || typedCharacter === "'") &&
+        !hasSelection &&
+        !shouldAutoCloseQuote(typedCharacter)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (hasSelection) {
+        wrapSelectionWithPair(typedCharacter, closingCharacter);
+      } else {
+        insertPair(typedCharacter, closingCharacter);
+      }
     }
   });
 
   code.addEventListener("click", updateAutocomplete);
+  code.addEventListener("click", () => {
+    renderCodeView(getActiveFile()?.name || "");
+  });
+  code.addEventListener("keyup", () => {
+    renderCodeView(getActiveFile()?.name || "");
+  });
+  code.addEventListener("select", () => {
+    renderCodeView(getActiveFile()?.name || "");
+  });
   code.addEventListener("blur", () => {
     setTimeout(() => {
       hideAutocomplete();
