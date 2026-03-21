@@ -32,6 +32,7 @@ const bracketPairs = {
 const closingBracketToOpening = Object.fromEntries(
   Object.entries(bracketPairs).map(([opening, closing]) => [closing, opening]),
 );
+const indentUnit = "  ";
 
 const updateLines = () => {
   if (!lines || !code) {
@@ -196,6 +197,8 @@ if (fileContainer && addFileMenu && code) {
   let selectedSuggestionIndex = 0;
   let currentSymbolTrie = null;
   let currentSymbols = new Map();
+  const fileHistories = new Map();
+  let suppressInputHandler = false;
 
   const createFileId = () =>
     `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -233,6 +236,7 @@ if (fileContainer && addFileMenu && code) {
     }));
 
   const getActiveFile = () => files.find((file) => file.id === activeFileId);
+  const getActiveHistory = () => fileHistories.get(activeFileId) || null;
 
   const isCppFileActive = () => getActiveFile()?.name.endsWith(".cpp");
 
@@ -423,22 +427,7 @@ if (fileContainer && addFileMenu && code) {
     const start = code.selectionStart - currentWord.length;
     const end = code.selectionStart;
 
-    code.setRangeText(suggestion.label, start, end, "end");
-    code.focus();
-
-    const activeFile = getActiveFile();
-
-    if (activeFile) {
-      activeFile.content = code.value;
-      saveFiles();
-      renderCodeView(activeFile.name);
-    } else {
-      renderCodeView();
-    }
-
-    updateLines();
-    highlightLine();
-    updateAutocomplete();
+    applyEdit(suggestion.label, start, end, "end");
   };
 
   const setActiveButton = () => {
@@ -456,6 +445,8 @@ if (fileContainer && addFileMenu && code) {
       return;
     }
 
+    ensureFileHistory(activeFile.id, activeFile.content);
+
     code.value = activeFile.content;
     code.scrollTop = 0;
     lines.scrollTop = 0;
@@ -470,6 +461,92 @@ if (fileContainer && addFileMenu && code) {
     highlightLine();
     updateAutocomplete();
     setActiveButton();
+  };
+
+  const createHistorySnapshot = () => ({
+    content: code.value,
+    selectionStart: code.selectionStart,
+    selectionEnd: code.selectionEnd,
+  });
+
+  const ensureFileHistory = (fileId, content = "") => {
+    if (!fileId) {
+      return null;
+    }
+
+    if (!fileHistories.has(fileId)) {
+      fileHistories.set(fileId, {
+        stack: [
+          {
+            content,
+            selectionStart: 0,
+            selectionEnd: 0,
+          },
+        ],
+        index: 0,
+      });
+    }
+
+    return fileHistories.get(fileId);
+  };
+
+  const recordHistorySnapshot = () => {
+    const activeHistory = ensureFileHistory(activeFileId, code.value);
+
+    if (!activeHistory) {
+      return;
+    }
+
+    const snapshot = createHistorySnapshot();
+    const currentSnapshot = activeHistory.stack[activeHistory.index];
+
+    if (
+      currentSnapshot &&
+      currentSnapshot.content === snapshot.content &&
+      currentSnapshot.selectionStart === snapshot.selectionStart &&
+      currentSnapshot.selectionEnd === snapshot.selectionEnd
+    ) {
+      return;
+    }
+
+    activeHistory.stack = activeHistory.stack.slice(0, activeHistory.index + 1);
+    activeHistory.stack.push(snapshot);
+    activeHistory.index = activeHistory.stack.length - 1;
+  };
+
+  const restoreHistorySnapshot = (snapshot) => {
+    if (!snapshot) {
+      return;
+    }
+
+    suppressInputHandler = true;
+    code.value = snapshot.content;
+    code.focus();
+    code.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd);
+    suppressInputHandler = false;
+    syncEditorState();
+  };
+
+  const undoHistory = () => {
+    const activeHistory = getActiveHistory();
+
+    if (!activeHistory || activeHistory.index === 0) {
+      return;
+    }
+
+    activeHistory.index -= 1;
+    restoreHistorySnapshot(activeHistory.stack[activeHistory.index]);
+  };
+
+  const redoHistory = () => {
+    const activeHistory = getActiveHistory();
+
+    if (!activeHistory || activeHistory.index >= activeHistory.stack.length - 1) {
+      return;
+    }
+
+    activeHistory.index += 1;
+    restoreHistorySnapshot(activeHistory.stack[activeHistory.index]);
   };
 
   const syncEditorState = () => {
@@ -495,9 +572,27 @@ if (fileContainer && addFileMenu && code) {
     renderCodeView(getActiveFile()?.name || "");
   };
 
-  const applyEdit = (replacement, start, end, selectionMode = "end") => {
+  const applyEdit = (
+    replacement,
+    start,
+    end,
+    selectionMode = "end",
+    nextSelectionStart = null,
+    nextSelectionEnd = null,
+  ) => {
+    suppressInputHandler = true;
     code.setRangeText(replacement, start, end, selectionMode);
+    suppressInputHandler = false;
+
+    if (nextSelectionStart !== null) {
+      setSelectionRange(
+        nextSelectionStart,
+        nextSelectionEnd === null ? nextSelectionStart : nextSelectionEnd,
+      );
+    }
+
     syncEditorState();
+    recordHistorySnapshot();
   };
 
   const wrapSelectionWithPair = (opening, closing) => {
@@ -505,15 +600,26 @@ if (fileContainer && addFileMenu && code) {
     const selectionEnd = code.selectionEnd;
     const selectedText = code.value.slice(selectionStart, selectionEnd);
 
-    applyEdit(`${opening}${selectedText}${closing}`, selectionStart, selectionEnd, "end");
-    setSelectionRange(selectionStart + 1, selectionEnd + 1);
+    applyEdit(
+      `${opening}${selectedText}${closing}`,
+      selectionStart,
+      selectionEnd,
+      "end",
+      selectionStart + 1,
+      selectionEnd + 1,
+    );
   };
 
   const insertPair = (opening, closing) => {
     const selectionStart = code.selectionStart;
 
-    applyEdit(`${opening}${closing}`, selectionStart, selectionStart, "end");
-    setSelectionRange(selectionStart + 1);
+    applyEdit(
+      `${opening}${closing}`,
+      selectionStart,
+      selectionStart,
+      "end",
+      selectionStart + 1,
+    );
   };
 
   const shouldAutoCloseQuote = (quote) => {
@@ -524,6 +630,187 @@ if (fileContainer && addFileMenu && code) {
     const touchesWord = /\w/.test(previousCharacter) || /\w/.test(nextCharacter);
 
     return !isEscaped && !touchesWord;
+  };
+
+  const getLineStart = (index) => code.value.lastIndexOf("\n", index - 1) + 1;
+
+  const getLineEnd = (index) => {
+    const lineEnd = code.value.indexOf("\n", index);
+    return lineEnd === -1 ? code.value.length : lineEnd;
+  };
+
+  const getLineIndent = (index) => {
+    const lineStart = getLineStart(index);
+    const lineText = code.value.slice(lineStart, getLineEnd(index));
+    const indentMatch = lineText.match(/^[\t ]*/);
+    return indentMatch ? indentMatch[0] : "";
+  };
+
+  const getPreviousNonWhitespaceCharacter = (index) => {
+    for (let currentIndex = index - 1; currentIndex >= 0; currentIndex -= 1) {
+      const character = code.value[currentIndex];
+
+      if (!/\s/.test(character)) {
+        return character;
+      }
+    }
+
+    return "";
+  };
+
+  const getNextNonWhitespaceCharacter = (index) => {
+    for (let currentIndex = index; currentIndex < code.value.length; currentIndex += 1) {
+      const character = code.value[currentIndex];
+
+      if (!/\s/.test(character)) {
+        return character;
+      }
+    }
+
+    return "";
+  };
+
+  const indentSelection = () => {
+    const selectionStart = code.selectionStart;
+    const selectionEnd = code.selectionEnd;
+    const hasSelection = selectionStart !== selectionEnd;
+
+    if (!hasSelection) {
+      applyEdit(indentUnit, selectionStart, selectionStart);
+      return;
+    }
+
+    const lineStart = getLineStart(selectionStart);
+    const normalizedSelectionEnd =
+      selectionEnd > lineStart && code.value[selectionEnd - 1] === "\n"
+        ? selectionEnd - 1
+        : selectionEnd;
+    const blockEnd = getLineEnd(normalizedSelectionEnd);
+    const selectedBlock = code.value.slice(lineStart, blockEnd);
+    const lineCount = selectedBlock.split("\n").length;
+    const indentedBlock = selectedBlock
+      .split("\n")
+      .map((line) => `${indentUnit}${line}`)
+      .join("\n");
+
+    applyEdit(
+      indentedBlock,
+      lineStart,
+      blockEnd,
+      "preserve",
+      selectionStart + indentUnit.length,
+      selectionEnd + indentUnit.length * lineCount,
+    );
+  };
+
+  const outdentSelection = () => {
+    const selectionStart = code.selectionStart;
+    const selectionEnd = code.selectionEnd;
+    const hasSelection = selectionStart !== selectionEnd;
+    const lineStart = getLineStart(selectionStart);
+    const normalizedSelectionEnd =
+      hasSelection && selectionEnd > lineStart && code.value[selectionEnd - 1] === "\n"
+        ? selectionEnd - 1
+        : selectionEnd;
+    const blockEnd = getLineEnd(normalizedSelectionEnd);
+    const selectedBlock = code.value.slice(lineStart, blockEnd);
+    const linesToChange = selectedBlock.split("\n");
+    let removedBeforeSelectionStart = 0;
+    let totalRemoved = 0;
+
+    const outdentedBlock = linesToChange
+      .map((line, index) => {
+        const removeMatch = line.match(/^ {1,2}|\t/);
+        const removed = removeMatch ? removeMatch[0].length : 0;
+
+        if (!removed) {
+          return line;
+        }
+
+        totalRemoved += removed;
+
+        if (index === 0) {
+          removedBeforeSelectionStart = Math.min(
+            removed,
+            Math.max(selectionStart - lineStart, 0),
+          );
+        }
+
+        return line.slice(removed);
+      })
+      .join("\n");
+
+    if (totalRemoved === 0) {
+      return;
+    }
+
+    const nextSelectionStart = Math.max(lineStart, selectionStart - removedBeforeSelectionStart);
+    const nextSelectionEnd = hasSelection
+      ? Math.max(nextSelectionStart, selectionEnd - totalRemoved)
+      : nextSelectionStart;
+
+    applyEdit(
+      outdentedBlock,
+      lineStart,
+      blockEnd,
+      "preserve",
+      nextSelectionStart,
+      nextSelectionEnd,
+    );
+  };
+
+  const insertNewlineWithIndentation = () => {
+    const selectionStart = code.selectionStart;
+    const selectionEnd = code.selectionEnd;
+    const currentIndent = getLineIndent(selectionStart);
+    const previousCharacter = getPreviousNonWhitespaceCharacter(selectionStart);
+    const nextCharacter = getNextNonWhitespaceCharacter(selectionEnd);
+    const shouldIncreaseIndent = previousCharacter === "{";
+    const innerIndent = `${currentIndent}${shouldIncreaseIndent ? indentUnit : ""}`;
+
+    if (shouldIncreaseIndent && nextCharacter === "}") {
+      const replacement = `\n${innerIndent}\n${currentIndent}`;
+      const caretOffset = selectionStart + innerIndent.length + 1;
+      applyEdit(
+        replacement,
+        selectionStart,
+        selectionEnd,
+        "end",
+        caretOffset,
+      );
+      return;
+    }
+
+    applyEdit(
+      `\n${innerIndent}`,
+      selectionStart,
+      selectionEnd,
+      "end",
+      selectionStart + innerIndent.length + 1,
+    );
+  };
+
+  const handleSmartBackspace = () => {
+    const selectionStart = code.selectionStart;
+    const lineStart = getLineStart(selectionStart);
+    const beforeCursor = code.value.slice(lineStart, selectionStart);
+
+    if (/^[ ]+$/.test(beforeCursor)) {
+      const removeCount =
+        beforeCursor.length % indentUnit.length || indentUnit.length;
+      const nextSelectionStart = selectionStart - removeCount;
+
+      applyEdit(
+        "",
+        nextSelectionStart,
+        selectionStart,
+        "start",
+        nextSelectionStart,
+      );
+      return true;
+    }
+
+    return false;
   };
 
   const renderTabs = () => {
@@ -576,6 +863,7 @@ if (fileContainer && addFileMenu && code) {
     };
 
     files.push(newFile);
+    ensureFileHistory(newFile.id, newFile.content);
     renderTabs();
     switchFile(newFile.id);
   };
@@ -595,9 +883,40 @@ if (fileContainer && addFileMenu && code) {
     saveFiles();
   }
 
-  code.addEventListener("input", syncEditorState);
+  files.forEach((file) => {
+    ensureFileHistory(file.id, file.content);
+  });
+
+  if (activeFileId) {
+    const activeHistory = ensureFileHistory(activeFileId, getActiveFile()?.content || "");
+
+    if (activeHistory) {
+      activeHistory.stack[0] = createHistorySnapshot();
+    }
+  }
+
+  code.addEventListener("input", () => {
+    if (suppressInputHandler) {
+      return;
+    }
+
+    syncEditorState();
+    recordHistorySnapshot();
+  });
 
   code.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+
+      if (event.shiftKey) {
+        redoHistory();
+      } else {
+        undoHistory();
+      }
+
+      return;
+    }
+
     if (event.key === "ArrowDown" && activeSuggestions.length) {
       event.preventDefault();
       selectedSuggestionIndex =
@@ -632,14 +951,42 @@ if (fileContainer && addFileMenu && code) {
     const hasSelection = selectionStart !== selectionEnd;
     const typedCharacter = event.key;
 
+    if (typedCharacter === "Tab") {
+      event.preventDefault();
+
+      if (event.shiftKey) {
+        outdentSelection();
+      } else {
+        indentSelection();
+      }
+
+      return;
+    }
+
+    if (typedCharacter === "Enter") {
+      event.preventDefault();
+      insertNewlineWithIndentation();
+      return;
+    }
+
     if (typedCharacter === "Backspace" && selectionStart > 0 && !hasSelection) {
       const previousCharacter = code.value[selectionStart - 1];
       const nextCharacter = code.value[selectionStart];
 
       if (autoClosePairs[previousCharacter] === nextCharacter) {
         event.preventDefault();
-        applyEdit("", selectionStart - 1, selectionStart + 1, "start");
-        setSelectionRange(selectionStart - 1);
+        applyEdit(
+          "",
+          selectionStart - 1,
+          selectionStart + 1,
+          "start",
+          selectionStart - 1,
+        );
+        return;
+      }
+
+      if (handleSmartBackspace()) {
+        event.preventDefault();
       }
 
       return;
