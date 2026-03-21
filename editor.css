@@ -37,7 +37,7 @@
 .code-input {
   display: flex;
   overflow: hidden;
-  /* background-color: aquamarine; */
+  position: relative;
   height: 100%;
   flex: 0 0 50%;
   min-width: 180px;
@@ -146,5 +146,29 @@
 }
 
 .dropdown-item:hover {
+  background: #f0f0f0;
+}
+
+.autocomplete {
+  position: absolute;
+  top: 48px;
+  left: 48px;
+  min-width: 180px;
+  max-width: 260px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #cfcfcf;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+}
+
+.autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
   background: #f0f0f0;
 }

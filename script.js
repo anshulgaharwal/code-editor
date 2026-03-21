@@ -8,8 +8,15 @@ const addFileBtn = document.getElementById("addFileBtn");
 const fileDropdown = document.getElementById("fileDropdown");
 const fileContainer = document.querySelector(".files");
 const addFileMenu = document.querySelector(".add-file-menu");
+const autocomplete = document.getElementById("autocomplete");
 
 const storageKey = "code-editor-files";
+const cppAutocompleteWords = [
+  ...(typeof cppKeywords !== "undefined" ? cppKeywords : []),
+  ...(typeof cppSpecialIdentifiers !== "undefined"
+    ? cppSpecialIdentifiers
+    : []),
+];
 
 const updateLines = () => {
   if (!lines || !code) {
@@ -61,6 +68,8 @@ if (lines && code) {
 if (fileContainer && addFileMenu && code) {
   let files = [];
   let activeFileId = null;
+  let activeSuggestions = [];
+  let selectedSuggestionIndex = 0;
 
   const createFileId = () =>
     `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -97,6 +106,95 @@ if (fileContainer && addFileMenu && code) {
       content: "",
     }));
 
+  const getActiveFile = () => files.find((file) => file.id === activeFileId);
+
+  const isCppFileActive = () => getActiveFile()?.name.endsWith(".cpp");
+
+  const getCurrentWord = () => {
+    const beforeCursor = code.value.slice(0, code.selectionStart);
+    const match = beforeCursor.match(/[A-Za-z_][A-Za-z0-9_]*$/);
+    return match ? match[0] : "";
+  };
+
+  const hideAutocomplete = () => {
+    activeSuggestions = [];
+    selectedSuggestionIndex = 0;
+    autocomplete?.classList.add("hidden");
+
+    if (autocomplete) {
+      autocomplete.innerHTML = "";
+    }
+  };
+
+  const renderAutocomplete = () => {
+    if (!autocomplete || !activeSuggestions.length) {
+      hideAutocomplete();
+      return;
+    }
+
+    autocomplete.innerHTML = activeSuggestions
+      .map(
+        (suggestion, index) => `
+          <div
+            class="autocomplete-item${index === selectedSuggestionIndex ? " active" : ""}"
+            data-index="${index}"
+          >
+            ${suggestion}
+          </div>
+        `,
+      )
+      .join("");
+
+    autocomplete.classList.remove("hidden");
+  };
+
+  const updateAutocomplete = () => {
+    if (!isCppFileActive()) {
+      hideAutocomplete();
+      return;
+    }
+
+    const currentWord = getCurrentWord().toLowerCase();
+
+    if (!currentWord) {
+      hideAutocomplete();
+      return;
+    }
+
+    activeSuggestions = cppAutocompleteWords
+      .filter((word) => word.toLowerCase().startsWith(currentWord))
+      .filter((word) => word.toLowerCase() !== currentWord)
+      .slice(0, 8);
+
+    selectedSuggestionIndex = 0;
+    renderAutocomplete();
+  };
+
+  const insertSuggestion = (suggestion) => {
+    const currentWord = getCurrentWord();
+
+    if (!suggestion || !currentWord) {
+      return;
+    }
+
+    const start = code.selectionStart - currentWord.length;
+    const end = code.selectionStart;
+
+    code.setRangeText(suggestion, start, end, "end");
+    code.focus();
+
+    const activeFile = getActiveFile();
+
+    if (activeFile) {
+      activeFile.content = code.value;
+      saveFiles();
+    }
+
+    updateLines();
+    highlightLine();
+    updateAutocomplete();
+  };
+
   const setActiveButton = () => {
     const buttons = fileContainer.querySelectorAll(".file-btn");
 
@@ -106,7 +204,7 @@ if (fileContainer && addFileMenu && code) {
   };
 
   const loadActiveFile = () => {
-    const activeFile = files.find((file) => file.id === activeFileId);
+    const activeFile = getActiveFile();
 
     if (!activeFile) {
       return;
@@ -117,6 +215,7 @@ if (fileContainer && addFileMenu && code) {
     lines.scrollTop = 0;
     updateLines();
     highlightLine();
+    updateAutocomplete();
     setActiveButton();
   };
 
@@ -137,7 +236,7 @@ if (fileContainer && addFileMenu && code) {
   };
 
   const switchFile = (fileId) => {
-    const currentFile = files.find((file) => file.id === activeFileId);
+    const currentFile = getActiveFile();
 
     if (currentFile) {
       currentFile.content = code.value;
@@ -190,7 +289,7 @@ if (fileContainer && addFileMenu && code) {
   }
 
   code.addEventListener("input", () => {
-    const activeFile = files.find((file) => file.id === activeFileId);
+    const activeFile = getActiveFile();
 
     if (activeFile) {
       activeFile.content = code.value;
@@ -199,6 +298,61 @@ if (fileContainer && addFileMenu && code) {
 
     updateLines();
     highlightLine();
+    updateAutocomplete();
+  });
+
+  code.addEventListener("keydown", (event) => {
+    if (!activeSuggestions.length) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      selectedSuggestionIndex =
+        (selectedSuggestionIndex + 1) % activeSuggestions.length;
+      renderAutocomplete();
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      selectedSuggestionIndex =
+        (selectedSuggestionIndex - 1 + activeSuggestions.length) %
+        activeSuggestions.length;
+      renderAutocomplete();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      insertSuggestion(activeSuggestions[selectedSuggestionIndex]);
+      hideAutocomplete();
+      return;
+    }
+
+    if (event.key === "Escape") {
+      hideAutocomplete();
+    }
+  });
+
+  code.addEventListener("click", updateAutocomplete);
+  code.addEventListener("blur", () => {
+    setTimeout(() => {
+      hideAutocomplete();
+    }, 120);
+  });
+
+  autocomplete?.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    const item = event.target.closest(".autocomplete-item");
+
+    if (!item) {
+      return;
+    }
+
+    const suggestion = activeSuggestions[Number(item.dataset.index)];
+    insertSuggestion(suggestion);
+    hideAutocomplete();
   });
 
   fileContainer.addEventListener("click", (event) => {
